@@ -175,7 +175,10 @@ static NSMutableArray<id> *_themeImagePool;
     if (![[self themeColorPool] containsObject:dic]) { // 不在主题色池中
         [[self themeColorPool] addObject:dic];
         if (_currentThemeColor) { // 已经设置主题色，直接设置
-            [self py_performSelector:selector withObjects:objects];
+            // 切换着主线程设置
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [self py_performSelector:selector withObjects:objects];
+            });
         }
     }
 }
@@ -196,7 +199,10 @@ static NSMutableArray<id> *_themeImagePool;
     if (![[self themeColorPool] containsObject:dic]) { // 不在主题色池中
         [[self themeColorPool] addObject:dic];
         if (_currentThemeColor) { // 已经设置主题色，直接设置
-            [self setValue:_currentThemeColor forKey:propertyName];
+            // 切换到主线程设置
+            dispatch_sync(dispatch_get_main_queue(), ^{
+                [self setValue:_currentThemeColor forKey:propertyName];
+            });
         }
     }
     // 遍历主题色池(移除应该被回收的对象)
@@ -263,13 +269,19 @@ static NSMutableArray<id> *_themeImagePool;
             // 取出方法
             NSString *selectorName = [objectKey substringFromIndex:[[NSString stringWithFormat:@"%p", object] length]];
             SEL selector = NSSelectorFromString(selectorName);
-            // 调用方法，设置属性
-            [object py_performSelector:selector withObjects:args];
+            // 切换到主线程设置
+            dispatch_sync(dispatch_get_main_queue(), ^{
+                // 调用方法，设置属性
+                [object py_performSelector:selector withObjects:args];
+            });
         } else { // 成员属性
             // 取出属性值
             NSString *propertyName = [objectKey substringFromIndex:[[NSString stringWithFormat:@"%p", object] length]];
-            // 给对象的对应属性赋值（使用KVC）
-            [object setValue:color forKeyPath:propertyName];
+            // 切换到主线程设置
+            dispatch_sync(dispatch_get_main_queue(), ^{
+                // 给对象的对应属性赋值（使用KVC）
+                [object setValue:color forKeyPath:propertyName];
+            });
         }
     }
 }
@@ -323,7 +335,10 @@ static NSMutableArray<id> *_themeImagePool;
         [self py_setThemeColor:themeColor];
     }
     if (block) { // 存在block，直接调用
-        block([self themeImagePool]);
+        // 切换到主线程调用
+        dispatch_sync(dispatch_get_main_queue(), ^{
+            block([self themeImagePool]);
+        });
     }
 }
 
